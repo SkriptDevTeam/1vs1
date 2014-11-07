@@ -1,0 +1,215 @@
+#/////////////////////////////////////
+#Skrypt gotowy
+#Podstawowe funkcje: RaiZeN
+#Skończył go adek1990 i tropereks
+#/////////////////////////////////////
+options:
+	#Prefix przed wiadomościami
+	logo: &e[&91VS1&e]
+	
+	#jak ma wyglądać 1 linijka tabliczki do dołączania
+	1linijka: &4[&91VS1&4]
+
+command /1vs1 [<text>] [<text>]:
+	trigger:
+		if arg 1 is not set:
+			if player have permissions "1vs1.*":
+				send "&8====================== {@logo} &8======================"
+				send "&a/1vs1 &6create <nazwa> &b- Ustawia arenę, należy ja ustawić w miejscu spawnowania graczy."
+				send "&a/1vs1 &6remove <nazwa> &b- Usuwa arenę."
+				send "&a/1vs1 &6setlobby &b- Ustawiasz lobby po wygranej arenie teleportuje tam graczy."
+				send "&a/1vs1 &6setkit <nazwa> &b- Ustawiasz kita dla danej areny, kit ustawia się to co masz w eq."
+				send "&a/1vs1 &6list &b- Lista aren."
+				send "&a/1vs1 &6setkit <nazwa> &b- Ustawiasz kita dla danej areny, kit ustawia się to co masz w eq."
+				send "&a/1vs1 &6join <nazwa> &b-  &b- Dołączasz do areny."
+				send "&a/1vs1 &6leave &b- Wychodzisz z areny."
+				send "&8====================== {@logo} &8======================"
+		if arg 1 is "join" or "dolacz":
+			if player have permissions "1vs1.gracz" or "1vs1.*":
+				if {1vs1::gracz::%player%::czyGra} is true:
+					send "{@logo} &cJesteś już na arenie."
+					stop
+				if arg 2 is set:
+					if {1vs1::arena::%arg 2%::istnienie} is true:
+						set {_nazwa} to {1vs1::arena::%arg 2%::nazwa}
+						if {1vs1::arena::%{_nazwa}%::stan} is not "trwa" or "odliczanie":
+							send "{@logo} &aDołączyłeś do areny."
+							set {_nick} to player
+							loop all players:
+								if {1vs1::gracz::%loop-player%::nazwaAreny} is {_nazwa}:
+									send "{@logo} &aGracz &6%{_nick}% &adołączył do areny." to loop-player
+							if {1vs1::arena::%{_nazwa}%::liczbaGraczy} is smaller than 0:
+								set {1vs1::arena::%{_nazwa}%::liczbaGraczy} to 1
+							else:
+								add 1 to {1vs1::arena::%{_nazwa}%::liczbaGraczy}
+							add player to {1vs1::arena::%{_nazwa}%::gracze::*} 
+							set {1vs1::gracz::%player%::czyGra} to true
+							set {1vs1::kit::pvp} to 1
+							set {1vs1::gracz::%player%::nazwaAreny} to {_nazwa}
+							teleport player to {1vs1::arena::%{_nazwa}%::locOfCentrum}
+							clear {1vs1::eq::%{_nick}%::*}
+							loop all items in player's inventory:
+								add loop-item to {1vs1::eq::%{_nick}%::*}
+							clear the player's inventory
+							add {1vs1::nazwa::%{_nazwa}%::kit::*} to the player
+							if {1vs1::arena::%{_nazwa}%::liczbaGraczy} is greater than or equal to 2:
+								set {1vs1::arena::%{_nazwa}%::stan} to "odliczanie"
+								set {_index} to 10
+								loop 10 times:
+									if {1vs1::arena::%{_nazwa}%::liczbaGraczy} is smaller than 2:
+										set {1vs1::arena::%{_nazwa}%::stan} to "oczekiwanie"
+										loop all players:
+											if {1vs1::gracz::%loop-player%::nazwaAreny} is {_nazwa}:
+												send "{@logo} &cZa mało graczy aby rozpocząć arenę." to loop-player
+										stop
+									remove 1 from {_index}
+									loop all players:
+										if {1vs1::gracz::%loop-player%::nazwaAreny} is {_nazwa}:
+											send "{@logo} &aStart za &9%{_index}% &6sekund/y." to loop-player
+									wait 1 seconds
+								set {1vs1::arena::%{_nazwa}%::stan} to "trwa"
+								loop all players:
+									if {1vs1::gracz::%loop-player%::nazwaAreny} is {_nazwa}:
+										send "{@logo} &aArena wystartowała." to loop-player
+						else:
+							send "{@logo} &cArena już się rozpoczęła."
+					else:
+						send "{@logo} &cTa arena nie istnieje."
+				else:
+					send "{@logo} &cPodaj nazwę areny."
+			else:
+				send "{@logo} &cNie masz do tego uprawnień."
+			stop
+		if arg 1 is "leave" or "odejdz" or "opusc":
+			if player have permissions "1vs1.gracz" or "1vs1.*":
+				if {1vs1::gracz::%player%::czyGra} is true:
+					set {_nazwa} to {1vs1::gracz::%player%::nazwaAreny}
+					send "{@logo} &aOpuściłeś arenę."
+					set {_nick} to player
+					loop all players:
+						if {1vs1::gracz::%loop-player%::nazwaAreny} is {_nazwa}:
+							send "{@logo} &aGracz &6%{_nick}% &aopuścił arenę." to loop-player
+					teleport player to {1vs1::lobby}
+					delete {1vs1::gracz::%player%::czyGra}
+					delete {1vs1::gracz::%player%::nazwaAreny}
+					if {1vs1::arena::%{_nazwa}%::liczbaGraczy} is smaller than 0:
+						set {1vs1::arena::%{_nazwa}%::liczbaGraczy} to 1
+					clear the player's inventory
+					add {1vs1::eq::%{_nick}%::*} to the player
+					remove 1 from {1vs1::arena::%{_nazwa}%::liczbaGraczy}
+					execute console command "1vs1 sprawdz %{_nazwa}%"
+					remove player from {1vs1::arena::%{_nazwa}%::gracze::*} 
+		if arg 1 is "sprawdz":
+			if arg 2 is set:
+				if sender is console:
+					set {_nazwa} to "%arg 2%"
+					if {1vs1::arena::%{_nazwa}%::stan} is "trwa":
+						if {1vs1::arena::%{_nazwa}%::liczbaGraczy} is 1:
+							loop all players:
+								if {1vs1::gracz::%loop-player%::nazwaAreny} is {_nazwa}:
+									set {_wygrany} to loop-player
+									send "{@logo} &aWygrałeś arenę." to loop-player
+							if {_wygrany} is not set:
+								loop all players:
+									send "{@logo} &cWystąpił nieznany błąd. Zgłoś się do administratora." to loop-player
+							else:
+								set {_nick} to "%{_wygrany}%"
+								loop all players:
+									send "{@logo} &aGracz %{_wygrany}% wygrał arenę %{_nazwa}%." to loop-player
+								teleport {_wygrany} to {1vs1::lobby}
+								execute {_wygrany} command "1vs1 leave"
+							set {1vs1::arena::%{_nazwa}%::liczbaGraczy} to 0
+							set {1vs1::arena::%{_nazwa}%::stan} to "oczekiwanie"
+						else:
+							loop all players:
+								if {1vs1::gracz::%loop-player%::nazwaAreny} is {_nazwa}:
+									send "{@logo} &aPozostało &6%{_pozostalo}% &agraczy." to loop-player
+				else:
+					send "{@logo} &cNie jesteś na żadnej arenie."
+					stop
+			else:
+				send "{@logo} &cNie masz do tego uprawnień."
+			stop
+		if arg 1 is "create" or "utworz":
+			if player have permissions "1vs1.*":
+				if arg 2 is set:
+					set {_nazwa} to arg 2
+					if {1vs1::arena::%{_nazwa}%::istnienie} is true:
+						send "{@logo} &cTa arena już istnieje."
+						stop
+					else:
+						add {_nazwa} to {1vs1::areny::lista::*}
+						set {1vs1::arena::%{_nazwa}%::istnienie} to true
+						set {1vs1::arena::%{_nazwa}%::nazwa} to {_nazwa}
+						set {1vs1::arena::%{_nazwa}%::locOfCentrum} to location of player
+						set {1vs1::arena::%{_nazwa}%::stan} to "oczekiwanie"
+						set {1vs1::arena::%{_nazwa}%::liczbaGraczy} to 0
+						send "{@logo} &aArena &6%{_nazwa}% &azostała utworzona."
+				else:
+					send "{@logo} &cWpisz poprawnie komendę /1vs1 create <nazwa>"
+			else:
+				send "{@logo} &cNie masz do tego uprawnień."
+			stop
+		if arg 1 is "remove" or "usun":
+			if player have permissions "1vs1.*":
+				if arg 2 is set:
+					set {_nazwa} to arg 2
+					if {1vs1::arena::%{_nazwa}%::istnienie} is false:
+						send "{@logo} &cTa arena nie istnieje."
+						stop
+					else:
+						remove {_nazwa} from {1vs1::areny::lista::*}
+						delete {1vs1::arena::%{_nazwa}%::*}
+						send "{@logo} &aArena &6%{_nazwa}% &azostała usunięta."
+				else:
+					send "{@logo} &cWpisz poprawnie komendę /1vs1 create <nazwa>"
+			else:
+				send "{@logo} &cNie masz do tego uprawnień."
+			stop
+		if arg 1 is "list":
+			if player have permissions "1vs1.*":
+				set {_x} to "%{1vs1::areny::lista::*}%"
+				replace all " and " with ", " in {_x}
+				replace all "," with "&b,&e" in {_x}
+				send "{@logo} &aLista map pvp &3(&b%size of {1vs1::areny::lista::*}%&3):"
+				send "&e%{_x}%"
+			else:
+				send "{@logo} &cNie masz do tego uprawnień."
+			stop
+		if arg 1 is "setlobby" or "ustawlobby":
+			if player have permissions "1vs1.*":
+				set {1vs1::lobby} to location of player
+				send "{@logo} &aUstawiono lobby."
+			else:
+				send "{@logo} &cNie masz do tego uprawnień."
+			stop
+		if arg 1 is "setkit":
+			if player have permission "1vs1.*":
+				if arg 2 is set:
+					if {1vs1::arena::%arg 2%::istnienie} is true:
+						clear {1vs1::nazwa::%arg 2%::kit::*}
+						loop all items in player's inventory:
+							add loop-item to {1vs1::nazwa::%arg 2%::kit::*}
+						if {1vs1::nazwa::%arg 2%::kit::*} is not empty:
+							send "{@logo} &aKit do areny &e%arg 2% &azostała ustawiona."
+						else:
+							send "{@logo} &aMasz puste eq."
+					else:
+						send "{@logo} &cArena &e%arg 2% &cnie istnieje."
+				else:
+					send "{@logo} &cUzycie: &e/1vs1 setkit <NAZWA>"
+			else:
+				send "{@logo} &cBrak uprawnien."
+on rightclick:
+	if event-block is sign:
+		if line 1 of the clicked block is "{@1linijka}":
+			if line 1 of the clicked block is set:
+				set {_nazwa} to line 2 of the clicked block
+				execute player command "1vs1 join %{_nazwa}%"
+on death:
+	if {1vs1::gracz::%player%::czyGra} is true:
+		execute player command "1vs1 leave"
+on kick:
+	execute player command "1vs1 leave"
+on quit:
+	execute player command "1vs1 leave"
